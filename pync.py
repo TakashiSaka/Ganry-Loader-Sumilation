@@ -7,6 +7,7 @@ macro_val_dict = {} #dictionary of macro variable
 system_macro_output_dict = {} #dictionary of system macro variable
 whole_macro_val_dict = {**macro_val_dict, **system_macro_input_dict}
 sub_program_line = [] #list of sub program line
+sub_program_line_withoutN = [] #list of sub program line without N sequence
 
 def main_program_macro_val(main_program_file):
     """
@@ -48,30 +49,31 @@ def main_program2sub_program(main_program_file):
             sub_o_num = mline[1].lstrip('P')
             sub_program = open(sub_o_num, 'r')
             sub_program_file = sub_program.readlines()
+            #print(sub_program_file)
             for sub_line in sub_program_file:
+                sub_line = re.sub(r'\(.*\)?', '', sub_line) #remove (comment)
                 sub_program_line.append(sub_line.strip())
     file.close()
     #pprint.pprint(sub_program_line)
     #sub_program_macro_val(sub_program_line)
 
-def sub_program_macro_val(sub_program_line):
+def sub_program_removeN(sub_program_line):
+    """
+    Remove N from sub program line
+    """
+    for line in sub_program_line:
+        if line.startswith('N'): #delete N sequence number
+            line = line.lstrip('N')
+            line = line.lstrip(re.compile(r'[0-9]*').search(line).group())
+            sub_program_line_withoutN.append(line)
+        else:
+            sub_program_line_withoutN.append(line)
+        
+def sub_program_macro_val(sub_program_line_wothoutN):
     """
     Calculation of sub program macro variable
     """
-    for line in sub_program_line:
-        if line.startswith('O'):
-            continue
-        
-        if line.startswith('('):
-            continue
-        
-        if line.startswith('N'): #delete N sequence number
-            nline = line.lstrip('N')
-            line = nline.lstrip(re.compile(r'[0-9]*').search(nline).group())
-        line = line.replace('#', '#')
-        line = re.sub(r'\(.*\)?', '', line)
-        #print(line)
-        
+    for line in sub_program_line_withoutN:
         if line.startswith('#'):
             if line[4:5] == '=': #macro variable #***
                 line_fomula = line[5:]
@@ -98,11 +100,11 @@ def sub_program_macro_val(sub_program_line):
                     system_macro_output_dict[line[:5]] = macro_val_dict[line[6:]]
                 #print(line)
 
-def sub_program_if_stat(sub_program_line):
+def sub_program_if_stat(sub_program_line_withoutN):
     """
     Handle IF statement
     """
-    for line in sub_program_line:                
+    for line in sub_program_line_withoutN:                
         if line.startswith('IF'):
             if line.find('GOTO') > 2:
                 if_condition = re.compile(r'\[.*\]').search(line).group()
@@ -110,13 +112,18 @@ def sub_program_if_stat(sub_program_line):
                 if_condition = if_condition.rstrip(']')
                 trans_if_condi = translate_if_condition(if_condition)
                 if_condi_result = replace_macro2valuable(trans_if_condi)
+                if if_condi_result:
+                    goto_num = line.split('GOTO')[1]
+                    print(goto_num)
                 #print(trans_if_condi)
                 #print(if_condi_result)
+                
             elif line.find('THEN') > 2:
                 if_condition = re.compile(r'\[.*\]').search(line).group()
                 if_condition = if_condition.lstrip('[')
                 if_condition = if_condition.rstrip(']')
                 trans_if_condi = translate_if_condition(if_condition)
+                if_condi_result = replace_macro2valuable(trans_if_condi)
                 #print(trans_if_condi)
             else:
                 pass
@@ -129,6 +136,9 @@ def translate_if_condition(if_condition):
     if_condition = if_condition.replace('LE', '<=')
     if_condition = if_condition.replace('GT', '>')
     if_condition = if_condition.replace('LT', '<')
+    if_condition = if_condition.replace('AND', ' and ')
+    if_condition = if_condition.replace('[', '')
+    if_condition = if_condition.replace(']', '')
     return if_condition
 
 def replace_macro2valuable(trans_if_condi):
@@ -141,18 +151,22 @@ def replace_macro2valuable(trans_if_condi):
         translated_fomula = translated_fomula.replace('#', str(macro_val_list[i]), 1)
     if_condi_result = eval(translated_fomula)
     print(translated_fomula)
-    print(macro_val_list)
+    #print(macro_val_list)
     print(if_condi_result)
     return if_condi_result
         
     
 main_program_macro_val(r'C:\Data\Data\Sakamoto\Python\Project_1\LD_PRO_MANU\1NC_1LD\MAIN')
 main_program2sub_program(r'C:\Data\Data\Sakamoto\Python\Project_1\LD_PRO_MANU\1NC_1LD\MAIN')
-sub_program_macro_val(sub_program_line)
+sub_program_removeN(sub_program_line)
+sub_program_macro_val(sub_program_line_withoutN)
 whole_macro_val_dict = {**macro_val_dict, **system_macro_input_dict}
-sub_program_if_stat(sub_program_line)
-#pprint.pprint(sub_program_line)
+sub_program_if_stat(sub_program_line_withoutN)
+pprint.pprint(sub_program_line)
+#pprint.pprint(sub_program_line_withoutN)
+line_num = 26
+print(sub_program_line[line_num-1])
 #pprint.pprint(macro_val_dict)
 #pprint.pprint(system_macro_output_dict)
 #pprint.pprint(system_macro_input_dict)
-pprint.pprint(whole_macro_val_dict)
+#pprint.pprint(whole_macro_val_dict)
